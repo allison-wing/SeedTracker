@@ -1,0 +1,1 @@
+/data09/ERA5/hourly/sp/ERA5_sp_202401.nc;/data09/ERA5/hourly/z/ERA5_z_202401.nc;/data09/ERA5/hourly/z/ERA5_z_202401.nc;/data09/ERA5/hourly/10u/ERA5_10u_202401.nc;/data09/ERA5/hourly/10v/ERA5_10v_202401.nc;/data09/ERA5_modified/invariant_0p25/zs_0p25.nc
