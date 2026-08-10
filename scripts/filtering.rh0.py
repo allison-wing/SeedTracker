@@ -111,7 +111,7 @@ def filter_hemi(list_file, hemi):
                 z5 = (z6 * a6 - z4 * a4) / (a6 - a4)
 
                 lat_ok = (0 <= clat <= 45) if hemi == "NH" else (-45 <= clat <= 0)
-                if (z0 + zf < z5) and (rh3 > rhmin) and lat_ok:
+                if (z0 + zf < z5) and lat_ok:
                     nodes.append([ilon, ilat, clon, clat, vo, msl, zs, ws10, z4, z6, z0, rh3, rh5])
 
             if len(nodes) == 0:

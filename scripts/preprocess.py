@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 import argparse
+import re
 import shutil
+import calendar
 import subprocess
 from pathlib import Path
+from datetime import datetime
 
 def load_config(path):
     config = {}
@@ -14,6 +17,25 @@ def load_config(path):
             key, val = line.split("=", 1)
             config[key.strip()] = val.strip().strip('"')
     return config
+
+def extract_date(filename):
+    for pattern in [r'\d{8}', r'\d{6}', r'\d{4}']:
+        m = re.search(pattern, Path(filename).name)
+        if m:
+            return m.group()
+    return None
+
+def in_range(filename, start_dt, end_dt):
+    date_str = extract_date(filename)
+    if date_str is None:
+        return False
+    for fmt in ['%Y%m%d', '%Y%m', '%Y']:
+        try:
+            date = datetime.strptime(date_str, fmt)
+            return start_dt <= date <= end_dt
+        except ValueError:
+            continue
+    return False
 
 VARS = ["MSLP", "Z850", "R850", "U10", "V10"]
 
@@ -27,7 +49,12 @@ def main():
     dataname = config["DATANAME"]
     workdir  = Path(args.workdir)
 
-    updated  = {}
+    start_dt = datetime.strptime(config["START"], "%Y%m")
+    end_ym   = datetime.strptime(config["END"], "%Y%m")
+    last_day = calendar.monthrange(end_ym.year, end_ym.month)[1]
+    end_dt   = end_ym.replace(day=last_day)
+
+    updated     = {}
     config_path = Path(args.config)
     updated_config = config_path.parent / f"{dataname}_updated.conf"
 
@@ -42,6 +69,8 @@ def main():
 
         print(f"[START] Subsampling {var} ({tres} → 6h)...")
         for f in sorted(Path(indir).glob("*.nc*")):
+            if not in_range(f.name, start_dt, end_dt):
+                continue
             out = outdir / f.name
             if out.exists():
                 print(f"  exists: {out}")

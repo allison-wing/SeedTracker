@@ -1,9 +1,35 @@
 #!/bin/bash
 
-DATASET=${1:?"Usage: bash run_tracker.sh <DATASET> [--skip-detect]"}
+DATASET=${1:?"Usage: bash run_tracker.sh <DATASET> [--skip-detect] [--skip-preproc] [--skip-rv] [--skip-filter] [--skip-tc] [--skip-stitch]"}
 SKIP_DETECT=false
+SKIP_PREPROC=false
+SKIP_RV=false
+SKIP_FILTER=false
+SKIP_TC=false
+SKIP_STITCH=false
+
 for arg in "$@"; do
     [ "$arg" = "--skip-detect" ] && SKIP_DETECT=true
+done
+
+for arg in "$@"; do
+    [ "$arg" = "--skip-preproc" ] && SKIP_PREPROC=true
+done
+
+for arg in "$@"; do
+    [ "$arg" = "--skip-rv" ] && SKIP_RV=true
+done
+
+for arg in "$@"; do                                                                                                          
+    [ "$arg" = "--skip-filter" ] && SKIP_FILTER=true
+done
+
+for arg in "$@"; do                                                                                                          
+    [ "$arg" = "--skip-tc" ] && SKIP_TC=true
+done
+
+for arg in "$@"; do
+    [ "$arg" = "--skip-stitch" ] && SKIP_STITCH=true
 done
 
 CONFIG="config/${DATASET}.conf"
@@ -19,23 +45,27 @@ echo " SeedTracker: ${DATASET}"
 echo " Period: ${START} - ${END}"
 echo "==============================="
 
-echo "[START] Preprocessing..."
-python scripts/preprocess.py --config "$CONFIG" --workdir "$WORKDIR"
-echo "[DONE] Preprocessing done"
+if [ "$SKIP_PREPROC" = false ]; then
 
-if [ -z "$RV850_DIR" ]; then
-    echo "[START] Computing RV850..."
-    python scripts/compute_rv850.py --config "$CONFIG" --workdir "$WORKDIR"
-    echo "[DONE] RV850 computed"
+	echo "[START] Preprocessing..."
+	python scripts/preprocess.py --config "$CONFIG" --workdir "$WORKDIR"
+	echo "[DONE] Preprocessing done"
+
+fi
+
+if [ "$SKIP_RV" = false ]; then
+	if [ -z "$RV850_DIR" ]; then
+    	echo "[START] Computing RV850..."
+	    python scripts/compute_rv850.py --config "$CONFIG" --workdir "$WORKDIR"
+    	echo "[DONE] RV850 computed"
+	fi
 fi
 
 CONFIG="config/${DATASET}_updated.conf"
 source "$CONFIG"
-
 echo "[START] Generating file list..."
 python scripts/filelist_generation.py --config "$CONFIG" --workdir "$WORKDIR"
 echo "[DONE] File list generated"
-
 INPUT_LIST="${WORKDIR}/${DATANAME}seed.input.txt"
 OUTPUT_NH="${WORKDIR}/${DATANAME}seed.DNoutput.NH.txt"
 OUTPUT_SH="${WORKDIR}/${DATANAME}seed.DNoutput.SH.txt"
@@ -91,13 +121,20 @@ if [ "$SKIP_DETECT" = false ]; then
     --outputcmd        "${RV850_CMD},min,1;${OUTPUTCMD}" \
     --minlat -45 --maxlat 0
     echo "[DONE] DetectNodes: SH"
+
+	mkdir -p log
+	mv log*txt log
 else
     echo "[SKIP] DetectNodes skipped"
 fi
 
-echo "[START] Filtering TC seeds..."
-python scripts/filtering.py --config "$CONFIG" --workdir "$WORKDIR"
-echo "[DONE] Filtering done"
+if [ "$SKIP_FILTER" = false ]; then
+	echo "[START] Filtering TC seeds..."
+	python scripts/filtering.py --config "$CONFIG" --workdir "$WORKDIR"
+	echo "[DONE] Filtering done"
+else
+	echo "[SKIP] Filtering skipped"
+fi
 
 INPUT_LIST_NH="${WORKDIR}/${DATANAME}seed.filteredoutput.NH.txt"
 INPUT_LIST_SH="${WORKDIR}/${DATANAME}seed.filteredoutput.SH.txt"
@@ -109,28 +146,31 @@ if [ "$ZS_UNIT" = "m" ]; then
 else
     ZS_THRESHOLD="980."
 fi
+if [ "$SKIP_STITCH" = false ]; then
+	echo "[START] StitchNodes: NH..."
+	StitchNodes \
+	  --in_list   "$INPUT_LIST_NH" \
+	  --out       "$OUTPUT_TRACKS_NH" \
+	  --in_fmt    "lon,lat,rv,slp,zs,ws,rh" \
+	  --range     3.0 \
+	  --minlength 8 \
+	  --maxgap    2 \
+	  --threshold "zs,<=,${ZS_THRESHOLD},4;lat,<=,25,4.;lat,>=,-25,4.;rv,>,1e-5,all"
+	echo "[DONE] StitchNodes: NH"
 
-echo "[START] StitchNodes: NH..."
-StitchNodes \
-  --in_list   "$INPUT_LIST_NH" \
-  --out       "$OUTPUT_TRACKS_NH" \
-  --in_fmt    "lon,lat,rv,slp,zs,ws,rh" \
-  --range     3.0 \
-  --minlength 8 \
-  --maxgap    2 \
-  --threshold "zs,<=,${ZS_THRESHOLD},4;lat,<=,25,4.;lat,>=,-25,4.;rv,>,1e-5,all"
-echo "[DONE] StitchNodes: NH"
-
-echo "[START] StitchNodes: SH..."
-StitchNodes \
-  --in_list   "$INPUT_LIST_SH" \
-  --out       "$OUTPUT_TRACKS_SH" \
-  --in_fmt    "lon,lat,rv,slp,zs,ws,rh" \
-  --range     3.0 \
-  --minlength 8 \
-  --maxgap    2 \
-  --threshold "zs,<=,${ZS_THRESHOLD},4;lat,<=,25,4.;lat,>=,-25,4.;rv,<,1e-5,all"
-echo "[DONE] StitchNodes: SH"
+	echo "[START] StitchNodes: SH..."
+	StitchNodes \
+	  --in_list   "$INPUT_LIST_SH" \
+	  --out       "$OUTPUT_TRACKS_SH" \
+	  --in_fmt    "lon,lat,rv,slp,zs,ws,rh" \
+	  --range     3.0 \
+	  --minlength 8 \
+	  --maxgap    2 \
+	  --threshold "zs,<=,${ZS_THRESHOLD},4;lat,<=,25,4.;lat,>=,-25,4.;rv,<,1e-5,all"
+	echo "[DONE] StitchNodes: SH"
+else
+    echo "[SKIP] StitchNodes skipped"
+fi
 
 Z300_CMD=$(format_var "$Z300" "$Z300_LEVEL")
 Z500_CMD=$(format_var "$Z500" "$Z500_LEVEL")
@@ -161,25 +201,33 @@ echo "[START] Generating TC file list..."
 python scripts/filelist_generation_tc.py --config "$CONFIG" --workdir "$WORKDIR"
 echo "[DONE] TC file list generated"
 
-echo "[START] DetectNodes: TC..."
-DetectNodes \
-    --in_data_list     "$TC_INPUT_LIST" \
-    --out_file_list    "$TC_OUTPUT" \
-    --searchbymin      "$MSLP_CMD" \
-    --closedcontourcmd "${MSLP_CMD},${TC_MSL_THRESHOLD},5.5,0;_DIFF(${Z300_CMD},${Z500_CMD}),${WARMCORE_THRESHOLD},6.5,1.0" \
-    --mergedist        6.0 \
-    --latname          "$LATNAME" \
-    --lonname          "$LONNAME" \
-    --outputcmd        "${MSLP_CMD},min,0;_VECMAG(${U10_CMD},${V10_CMD}),max,2;${ZS_CMD},min,0"
-echo "[DONE] DetectNodes: TC"
+if [ "$SKIP_TC" = false ]; then
+	echo "[START] DetectNodes: TC..."
+	DetectNodes \
+	    --in_data_list     "$TC_INPUT_LIST" \
+	    --out_file_list    "$TC_OUTPUT" \
+	    --searchbymin      "$MSLP_CMD" \
+	    --closedcontourcmd "${MSLP_CMD},${TC_MSL_THRESHOLD},5.5,0;_DIFF(${Z300_CMD},${Z500_CMD}),${WARMCORE_THRESHOLD},6.5,1.0" \
+	    --mergedist        6.0 \
+	    --latname          "$LATNAME" \
+	    --lonname          "$LONNAME" \
+	    --outputcmd        "${MSLP_CMD},min,0;_VECMAG(${U10_CMD},${V10_CMD}),max,2;${ZS_CMD},min,0"
+	echo "[DONE] DetectNodes: TC"
 
-echo "[START] StitchNodes: TC..."
-StitchNodes \
-    --in_list   "$TC_OUTPUT" \
-    --out       "$TC_TRACKS" \
-    --in_fmt    "lon,lat,slp,wind,zs" \
-    --range     8.0 \
-    --mintime   "54h" \
-    --maxgap    "24h" \
-    --threshold "wind,>=,10.0,10;lat,<=,50.0,10;lat,>=,-50.0,10;zs,<=,${TC_ZS_THRESHOLD},10"
-echo "[DONE] StitchNodes: TC"
+	echo "[START] StitchNodes: TC..."
+	StitchNodes \
+	    --in_list   "$TC_OUTPUT" \
+	    --out       "$TC_TRACKS" \
+    	--in_fmt    "lon,lat,slp,wind,zs" \
+	    --range     8.0 \
+    	--mintime   "54h" \
+	    --maxgap    "24h" \
+    	--threshold "wind,>=,10.0,10;lat,<=,50.0,10;lat,>=,-50.0,10;zs,<=,${TC_ZS_THRESHOLD},10"
+	echo "[DONE] StitchNodes: TC"
+else
+	echo "[SKIP] TC tracking skipped"
+fi
+
+echo "[START] Postprocessing..."
+python scripts/postprocess.py --config "$CONFIG" --outdir "$OUTDIR"
+echo "[DONE] Postprocessing done"

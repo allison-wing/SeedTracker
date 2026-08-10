@@ -2,10 +2,12 @@
 import argparse
 import re
 import shutil
+import calendar
 import numpy as np
 import xarray as xr
 from netCDF4 import Dataset
 from pathlib import Path
+from datetime import datetime
 
 def load_config(path):
     config = {}
@@ -26,6 +28,20 @@ def compute_rv(u, v, lat, lon):
     dudy = np.gradient(u * np.cos(np.deg2rad(lat))[:, None], axis=-2) / (R * dlat[:, None])
     return dvdx - dudy
 
+def in_range(filename, start_dt, end_dt):
+    date_str = next(
+        (m.group() for p in [r'\d{8}', r'\d{6}', r'\d{4}']
+         for m in [re.search(p, Path(filename).name)] if m), None
+    )
+    if date_str is None:
+        return False
+    for fmt in ['%Y%m%d', '%Y%m', '%Y']:
+        try:
+            return start_dt <= datetime.strptime(date_str, fmt) <= end_dt
+        except ValueError:
+            continue
+    return False
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config",  required=True)
@@ -40,12 +56,20 @@ def main():
     for tmp in outdir.glob("tmp_*.nc"):
         tmp.unlink()
 
+    start_dt = datetime.strptime(config["START"], "%Y%m")
+    end_ym   = datetime.strptime(config["END"], "%Y%m")
+    last_day = calendar.monthrange(end_ym.year, end_ym.month)[1]
+    end_dt   = end_ym.replace(day=last_day)
+
     level_str = config["U850_LEVEL"]
     level_val = float("".join(filter(str.isdigit, level_str)))
     if "Pa" in level_str and "hPa" not in level_str:
         level_val /= 100.0
 
-    u_files = sorted(Path(config["U850_DIR"]).glob("*.nc*"))
+    u_files = sorted(
+        f for f in Path(config["U850_DIR"]).glob("*.nc*")
+        if in_range(f.name, start_dt, end_dt)
+    )
 
     for ufile in u_files:
         date_str = next(
@@ -93,10 +117,10 @@ def main():
             dst.createDimension("lat",  len(lat))
             dst.createDimension("lon",  len(lon))
 
-            t_src      = src["time"]
-            t_dst      = dst.createVariable("time", t_src.dtype, ("time",))
+            t_src    = src["time"]
+            t_dst    = dst.createVariable("time", t_src.dtype, ("time",))
             t_dst.setncatts({k: t_src.getncattr(k) for k in t_src.ncattrs()})
-            t_dst[:]   = t_src[:]
+            t_dst[:] = t_src[:]
 
             lat_dst    = dst.createVariable("lat", "f4", ("lat",))
             lat_dst[:] = lat
