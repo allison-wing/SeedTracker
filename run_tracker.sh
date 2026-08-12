@@ -153,7 +153,7 @@ if [ "$SKIP_STITCH" = false ]; then
 	  --out       "$OUTPUT_TRACKS_NH" \
 	  --in_fmt    "lon,lat,rv,slp,zs,ws,rh" \
 	  --range     3.0 \
-	  --minlength 8 \
+	  --minlength 4 \
 	  --maxgap    2 \
 	  --threshold "zs,<=,${ZS_THRESHOLD},4;lat,<=,25,4.;lat,>=,-25,4.;rv,>,1e-5,all"
 	echo "[DONE] StitchNodes: NH"
@@ -164,9 +164,9 @@ if [ "$SKIP_STITCH" = false ]; then
 	  --out       "$OUTPUT_TRACKS_SH" \
 	  --in_fmt    "lon,lat,rv,slp,zs,ws,rh" \
 	  --range     3.0 \
-	  --minlength 8 \
+	  --minlength 4 \
 	  --maxgap    2 \
-	  --threshold "zs,<=,${ZS_THRESHOLD},4;lat,<=,25,4.;lat,>=,-25,4.;rv,<,1e-5,all"
+	  --threshold "zs,<=,${ZS_THRESHOLD},4;lat,<=,25,4.;lat,>=,-25,4.;rv,<,-1e-5,all"
 	echo "[DONE] StitchNodes: SH"
 else
     echo "[SKIP] StitchNodes skipped"
