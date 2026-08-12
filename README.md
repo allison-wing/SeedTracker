@@ -1,2 +1,2 @@
-Command:
-bash run_tracker.sh ERA5(or JRA3Q, MERRA2)
+Command example:
+bash run_tracker.sh ERA5
