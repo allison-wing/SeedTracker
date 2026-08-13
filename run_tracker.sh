@@ -1,9 +1,10 @@
 #!/bin/bash
 
-DATASET=${1:?"Usage: bash run_tracker.sh <DATASET> [--skip-detect] [--skip-preproc] [--skip-rv] [--skip-filter] [--skip-tc] [--skip-stitch]"}
+DATASET=${1:?"Usage: bash run_tracker.sh <DATASET> [--skip-detect] [--skip-preproc] [--skip-rv] [--skip-rh] [--skip-filter] [--skip-tc] [--skip-stitch]"}
 SKIP_DETECT=false
 SKIP_PREPROC=false
 SKIP_RV=false
+SKIP_RH=false
 SKIP_FILTER=false
 SKIP_TC=false
 SKIP_STITCH=false
@@ -18,6 +19,10 @@ done
 
 for arg in "$@"; do
     [ "$arg" = "--skip-rv" ] && SKIP_RV=true
+done
+
+for arg in "$@"; do
+    [ "$arg" = "--skip-rh" ] && SKIP_RH=true
 done
 
 for arg in "$@"; do                                                                                                          
@@ -58,6 +63,14 @@ if [ "$SKIP_RV" = false ]; then
     	echo "[START] Computing RV850..."
 	    python scripts/compute_rv850.py --config "$CONFIG" --workdir "$WORKDIR"
     	echo "[DONE] RV850 computed"
+	fi
+fi
+
+if [ "$SKIP_RH" = false ]; then
+	if [ -z "$R850_DIR" ]; then
+    	echo "[START] Computing R850..."
+	    python scripts/compute_rh850.py --config "$CONFIG" --workdir "$WORKDIR"
+    	echo "[DONE] R850 computed"
 	fi
 fi
 

@@ -94,18 +94,20 @@ def main():
         ds_u = xr.open_dataset(ufile)
         ds_v = xr.open_dataset(v_matches[0])
 
-        u = ds_u[config["U850"]].sel(lev=level_val, method="nearest")
-        v = ds_v[config["V850"]].sel(lev=level_val, method="nearest")
+        u = ds_u[config["U850"]].sel(pressure_level=level_val, method="nearest")
+        v = ds_v[config["V850"]].sel(pressure_level=level_val, method="nearest")
 
-        lat = u[config["LATNAME"]].values
-        lon = u[config["LONNAME"]].values
+        lat_name = config["LATNAME"]
+        lon_name = config["LONNAME"]
+        lat = u[lat_name].values
+        lon = u[lon_name].values
 
         rv_data = xr.apply_ufunc(
             compute_rv,
             u, v,
             kwargs={"lat": lat, "lon": lon},
-            input_core_dims=[["lat", "lon"], ["lat", "lon"]],
-            output_core_dims=[["lat", "lon"]],
+            input_core_dims=[[lat_name, lon_name], [lat_name, lon_name]],
+            output_core_dims=[[lat_name, lon_name]],
             vectorize=True,
         )
         rv_vals = rv_data.values
@@ -117,7 +119,7 @@ def main():
             dst.createDimension("lat",  len(lat))
             dst.createDimension("lon",  len(lon))
 
-            t_src    = src["time"]
+            t_src    = src["valid_time"]
             t_dst    = dst.createVariable("time", t_src.dtype, ("time",))
             t_dst.setncatts({k: t_src.getncattr(k) for k in t_src.ncattrs()})
             t_dst[:] = t_src[:]
