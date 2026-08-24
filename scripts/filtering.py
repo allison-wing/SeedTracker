@@ -112,7 +112,7 @@ def filter_hemi(list_file, hemi):
 
                 lat_ok = (0 <= clat <= 45) if hemi == "NH" else (-45 <= clat <= 0)
                 if (z0 + zf < z5) and (rh3 > rhmin) and lat_ok:
-                    nodes.append([ilon, ilat, clon, clat, vo, msl, zs, ws10, z4, z6, z0, rh3, rh5])
+                    nodes.append([ilon, ilat, clon, clat, vo, msl, zs, ws10, rh3])
 
             if len(nodes) == 0:
                 continue
@@ -130,7 +130,7 @@ def filter_hemi(list_file, hemi):
                 if len(row) == 5:
                     f.write("%d\t%d\t%d\t%d\t%d\n" % tuple(row))
                 else:
-                    f.write("\t%d\t%d\t%.6f\t%.6f\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\n" % tuple(row))
+                    f.write("\t%d\t%d\t%.6f\t%.6f\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e\n" % tuple(row))
 
         written_files.append(str(outname))
 

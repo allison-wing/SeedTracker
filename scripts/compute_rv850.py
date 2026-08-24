@@ -97,6 +97,11 @@ def main():
         u = ds_u[config["U850"]].sel(pressure_level=level_val, method="nearest")
         v = ds_v[config["V850"]].sel(pressure_level=level_val, method="nearest")
 
+        time_dim = "valid_time" if "valid_time" in u.dims else "time"
+        hour_mask = u[time_dim].dt.hour.isin([0, 6, 12, 18])
+        u = u.sel({time_dim: hour_mask})
+        v = v.sel({time_dim: hour_mask})
+
         lat_name = config["LATNAME"]
         lon_name = config["LONNAME"]
         lat = u[lat_name].values
@@ -122,7 +127,7 @@ def main():
             t_src    = src["valid_time"]
             t_dst    = dst.createVariable("time", t_src.dtype, ("time",))
             t_dst.setncatts({k: t_src.getncattr(k) for k in t_src.ncattrs()})
-            t_dst[:] = t_src[:]
+            t_dst[:] = t_src[:][hour_mask.values]
 
             lat_dst    = dst.createVariable("lat", "f4", ("lat",))
             lat_dst[:] = lat

@@ -8,6 +8,8 @@ import xarray as xr
 from netCDF4 import Dataset
 from pathlib import Path
 from datetime import datetime
+from metpy.calc import relative_humidity_from_specific_humidity
+from metpy.units import units
 
 
 def load_config(path):
@@ -21,14 +23,10 @@ def load_config(path):
             config[key.strip()] = val.strip().strip('"')
     return config
 
-
 def compute_rh(temp, q, p):
     t_c = temp - 273.15
-    es = 611.2 * np.exp((17.67 * t_c) / (t_c + 243.5))
-    e = (q * p) / (0.622 + 0.378 * q)
-    rh = 100.0 * e / es
+    rh = relative_humidity_from_specific_humidity(p * units.hPa, t_c * units.degC, q).to('percent')
     return np.clip(rh, 0.0, 100.0)
-
 
 def in_range(filename, start_dt, end_dt):
     date_str = next(
@@ -107,6 +105,11 @@ def main():
         temp = ds_t[config["T850"]].sel(pressure_level=t_level, method="nearest")
         q = ds_q[config["Q850"]].sel(pressure_level=q_level, method="nearest")
 
+        time_dim = "valid_time" if "valid_time" in temp.dims else "time"
+        hour_mask = temp[time_dim].dt.hour.isin([0, 6, 12, 18])
+        temp = temp.sel({time_dim: hour_mask})
+        q = q.sel({time_dim: hour_mask})
+
         lat_name = config["LATNAME"]
         lon_name = config["LONNAME"]
         lat = temp[lat_name].values
@@ -135,7 +138,7 @@ def main():
             t_src = src[time_name]
             t_dst = dst.createVariable("time", t_src.dtype, ("time",))
             t_dst.setncatts({k: t_src.getncattr(k) for k in t_src.ncattrs()})
-            t_dst[:] = t_src[:]
+            t_dst[:] = t_src[:][hour_mask.values]
 
             lat_dst = dst.createVariable("lat", "f4", ("lat",))
             lat_dst[:] = lat
@@ -149,15 +152,15 @@ def main():
 
         print(f"  computed: {outfile}")
 
-    print(f"[DONE] RH850 written to {outdir}")
+    print(f"[DONE] R850 written to {outdir}")
 
     updated_config = Path(args.config).parent / f"{config['DATANAME']}_updated.conf"
     if not updated_config.exists():
         shutil.copy(args.config, updated_config)
     with open(updated_config, "a") as f:
-        f.write(f'\nRH850_DIR="{outdir.resolve()}"\n')
-        f.write(f'RH850="rh"\n')
-        f.write(f'RH850_LEVEL=""\n')
+        f.write(f'\nR850_DIR="{outdir.resolve()}"\n')
+        f.write(f'R850="rh"\n')
+        f.write(f'R850_LEVEL=""\n')
     print(f"[DONE] Updated config: {updated_config}")
 
 
