@@ -25,7 +25,7 @@ def load_config(path):
 
 def compute_rh(temp, q, p):
     t_c = temp - 273.15
-    rh = relative_humidity_from_specific_humidity(p * units.hPa, t_c * units.degC, q).to('percent')
+    rh = relative_humidity_from_specific_humidity(p * units.hPa, t_c * units.degC, q).to('percent').magnitude
     return np.clip(rh, 0.0, 100.0)
 
 def in_range(filename, start_dt, end_dt):
@@ -114,13 +114,14 @@ def main():
         lon_name = config["LONNAME"]
         lat = temp[lat_name].values
         lon = temp[lon_name].values
-        pressure_pa = t_level * 100.0 if t_level_str.endswith("hPa") else t_level
+        # compute_rh expects pressure in hPa; t_level is already in hPa
+        pressure_hpa = t_level
 
         rh_data = xr.apply_ufunc(
             compute_rh,
             temp,
             q,
-            kwargs={"p": pressure_pa},
+            kwargs={"p": pressure_hpa},
             input_core_dims=[[lat_name, lon_name], [lat_name, lon_name]],
             output_core_dims=[[lat_name, lon_name]],
             vectorize=True,
