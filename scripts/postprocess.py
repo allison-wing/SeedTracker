@@ -116,12 +116,12 @@ def parse_seed_tracks(filepath):
                     'slp':  float(parts[5]),
                     'zs':   float(parts[6]),
                     'ws':   float(parts[7]),
-                    'rh':   float(parts[11]),
-                    'yyyy': int(parts[13]),
-                    'mm':   int(parts[14]),
-                    'dd':   int(parts[15]),
-                    'hh':   int(parts[16]),
-                    'time': to_dt(parts[13], parts[14], parts[15], parts[16]),
+                    'rh':   float(parts[8]),
+                    'yyyy': int(parts[9]),
+                    'mm':   int(parts[10]),
+                    'dd':   int(parts[11]),
+                    'hh':   int(parts[12]),
+                    'time': to_dt(parts[9], parts[10], parts[11], parts[12]),
                 })
     if current is not None:
         tracks.append(current)
